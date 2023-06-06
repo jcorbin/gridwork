@@ -68,7 +68,7 @@ module grid_profile(
       rounding2=$grid_rounding - next_inset,
       h=next_i < len(steps) ? up + $eps : up
     )
-      if (next_i < len(steps)) {
+      if (next_height > 0 && next_i < len(steps)) {
         attach(TOP, BOTTOM, overlap=$eps)
         grid_profile(
           steps = steps,
@@ -99,7 +99,7 @@ module grid_base_profile(
       0.7,
       [0, 1.8],
       "out", // remaining inset == 2.15
-      "up", // remaining height == 7 - 4.65 == 7 - 0.7 - 1.8 - 2.15
+      "up", // remaining height == height - 4.65 == height - 0.7 - 1.8 - 2.15
     ],
     size = size,
     inset = 2.85,
@@ -129,34 +129,85 @@ module grid_bin_profile(
     children();
 }
 
-module q1() {
-  intersection() {
-    cube([21, 21, 7]);
+// Conctructs a grid baseplate with a certain number of cell rows and columns.
+module grid_baseplate(
+  n,
+  wall = 4, // TODO what's typical default
+  lift = 0, // TODO what's typcial default? depends on magnets?
+  anchor=CENTER, spin=0, orient=UP
+) {
+
+  $grid_cols = is_list(n) ? n[0] : n;
+  $grid_rows = is_list(n) ? n[1] : n;
+
+  lip_height = 4.65;
+
+  size=[
+    $grid_cols * $grid_unit * $grid_cell_size + 2*wall,
+    $grid_rows * $grid_unit * $grid_cell_size + 2*wall,
+    lip_height + lift
+  ];
+
+  cell_center = [0, 0, -size.z] - [$grid_cols+1, $grid_rows+1]/2 * $grid_unit * $grid_cell_size;
+
+  attachable(size=size, anchor=anchor, spin=spin, orient=orient,
+    anchors = [
+      for (col = [1:$grid_cols])
+      for (row = [1:$grid_rows])
+      let (
+        name = str("cell_",col,"_",row),
+        pos = [
+          col * $grid_unit * $grid_cell_size,
+          row * $grid_unit * $grid_cell_size,
+          0 // FIXME Z value here seems ineffective, attachments end up centered no matter what
+        ] + cell_center
+      ) named_anchor(name, pos)
+    ]
+  ) {
+
+    diff() cuboid(
+      size=size,
+      rounding=$grid_rounding,
+      edges="Z"
+    ) {
+      tag("remove")
+      grid_copies(
+        n=[$grid_cols, $grid_rows],
+        spacing=$grid_unit * $grid_cell_size
+      )
+      attach(BOTTOM, TOP, overlap=lip_height+$eps+lift)
+      grid_base_profile(
+        size=$grid_unit * $grid_cell_size,
+        height=lip_height+2*$eps
+      );
+    }
+
     children();
   }
 }
 
-#render() q1()
-grid_bin_profile(
-  height=3*$grid_unit,
-  anchor=BOTTOM
-);
+grid_baseplate([4, 3]) {
 
-q1()
-up(7/2)
-diff() cuboid(
-  size=[
-    $grid_unit * $grid_cell_size,
-    $grid_unit * $grid_cell_size,
-    $grid_unit
-  ],
-  rounding=$grid_rounding,
-  edges="Z"
-)
-  tag("remove") grid_base_profile(
-    size=$grid_unit * $grid_cell_size + 2*$eps,
-    height=$grid_unit + $eps
-  );
+  show_anchors();
+
+  // NOTE: maybe attach bins with overlap=-$grid_tolerance
+
+  // hf = (41.5-2.95)/2;
+  //   left(hf/2) back(hf/2)
+  //   down(4.65/2) // FIXME whhy
+  //   cuboid([hf, hf, 0.1], rounding=0.8, edges="Z");
+
+  attach("cell_1_1", BOTTOM)
+    down(4.65/2) // FIXME why
+    #render()
+    grid_bin_profile(height=3*$grid_unit);
+
+  attach("cell_4_3", BOTTOM)
+    down(4.65/2) // FIXME why
+    #render()
+    grid_bin_profile(height=3*$grid_unit);
+
+}
 
 // TODO block -- a body with feet and a lip
 // TODO baseplate -- base, maybe body, with additional features (weights, mangets, screws, connectors, surrounding material, tunnels, etc)

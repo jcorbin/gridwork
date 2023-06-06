@@ -5,7 +5,9 @@ This is my own take at a from scratch rebuild of gridfinity withing BOSL2.
 ## Status: explorative developement, doesn't even have a completed bin or baseplate yet
 
 - [x] basic grid stepped profile
-- [ ] base plate grid
+- [ ] base plate grid ; WIP
+  - [x] basic attachable baseplate mostly works...
+  - [ ] ... but the attachment point Z values aren't still slightly off
 - [ ] solid blank bin blocks
 - [ ] magnet holes
 - [ ] screw holes
